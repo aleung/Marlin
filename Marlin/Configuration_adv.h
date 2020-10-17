@@ -522,7 +522,7 @@
 
 // If you want endstops to stay on (by default) even when not homing
 // enable this option. Override at any time with M120, M121.
-//#define ENDSTOPS_ALWAYS_ON_DEFAULT
+#define ENDSTOPS_ALWAYS_ON_DEFAULT
 
 // @section extras
 
@@ -653,8 +653,10 @@
 
 //#define SENSORLESS_BACKOFF_MM  { 2, 2 }     // (mm) Backoff from endstops before sensorless homing
 
-#define HOMING_BUMP_MM      { 5, 5, 2 }       // (mm) Backoff from endstops after first bump
-#define HOMING_BUMP_DIVISOR { 2, 2, 4 }       // Re-Bump Speed Divisor (Divides the Homing Feedrate)
+// Homing hits each endstop, retracts by these distances, then does a slower bump.
+// deltas need the same for all three axes
+#define HOMING_BUMP_MM      { 5, 5, 5 }       // (mm) Backoff from endstops after first bump
+#define HOMING_BUMP_DIVISOR { 10, 10, 10 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
 
 //#define HOMING_BACKOFF_POST_MM { 2, 2, 2 }  // (mm) Backoff from endstops after homing
 
@@ -858,7 +860,8 @@
 
 // Slow down the machine if the lookahead buffer is (by default) half full.
 // Increase the slowdown divisor for larger buffer sizes.
-#define SLOWDOWN
+// (don't use SLOWDOWN with DELTA because DELTA generates hundreds of segments per second)
+//#define SLOWDOWN
 #if ENABLED(SLOWDOWN)
   #define SLOWDOWN_DIVISOR 2
 #endif
@@ -1049,7 +1052,7 @@
 // @section lcd
 
 #if EITHER(ULTIPANEL, EXTENSIBLE_UI)
-  #define MANUAL_FEEDRATE { 50*60, 50*60, 4*60, 2*60 } // (mm/min) Feedrates for manual moves along X, Y, Z, E from panel
+  #define MANUAL_FEEDRATE { 50*60, 50*60, 50*60, 2*60 } // (mm/min) Feedrates for manual moves along X, Y, Z, E from panel
   #define SHORT_MANUAL_Z_MOVE 0.025 // (mm) Smallest manual Z move (< 0.1mm)
   #if ENABLED(ULTIPANEL)
     #define MANUAL_E_MOVES_RELATIVE // Display extruder move distance rather than "position"
@@ -1254,7 +1257,7 @@
   //#define LONG_FILENAME_HOST_SUPPORT
 
   // Enable this option to scroll long filenames in the SD card menu
-  //#define SCROLL_LONG_FILENAMES
+  #define SCROLL_LONG_FILENAMES
 
   // Leave the heaters on after Stop Print (not recommended!)
   //#define SD_ABORT_NO_COOLDOWN
@@ -1653,7 +1656,7 @@
 //#define LIN_ADVANCE
 #if ENABLED(LIN_ADVANCE)
   //#define EXTRA_LIN_ADVANCE_K // Enable for second linear advance constants
-  #define LIN_ADVANCE_K 0.22    // Unit: mm compression per 1mm/s extruder speed
+  #define LIN_ADVANCE_K 0.33    // Unit: mm compression per 1mm/s extruder speed
   //#define LA_DEBUG            // If enabled, this will generate debug information output over USB.
   //#define EXPERIMENTAL_SCURVE // Enable this option to permit S-Curve Acceleration
 #endif
@@ -2087,25 +2090,35 @@
  * Requires NOZZLE_PARK_FEATURE.
  * This feature is required for the default FILAMENT_RUNOUT_SCRIPT.
  */
-//#define ADVANCED_PAUSE_FEATURE
+#define ADVANCED_PAUSE_FEATURE
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
+
   #define PAUSE_PARK_RETRACT_FEEDRATE         60  // (mm/s) Initial retract feedrate.
   #define PAUSE_PARK_RETRACT_LENGTH            2  // (mm) Initial retract.
                                                   // This short retract is done immediately, before parking the nozzle.
-  #define FILAMENT_CHANGE_UNLOAD_FEEDRATE     10  // (mm/s) Unload filament feedrate. This can be pretty fast.
+
+  // nozzle is parked
+
+  #define FILAMENT_CHANGE_UNLOAD_FEEDRATE     60  // (mm/s) Unload filament feedrate. This can be pretty fast.
   #define FILAMENT_CHANGE_UNLOAD_ACCEL        25  // (mm/s^2) Lower acceleration may allow a faster feedrate.
-  #define FILAMENT_CHANGE_UNLOAD_LENGTH      100  // (mm) The length of filament for a complete unload.
+  #define FILAMENT_CHANGE_UNLOAD_LENGTH      200  // (mm) The length of filament for a complete unload.
                                                   //   For Bowden, the full length of the tube and nozzle.
                                                   //   For direct drive, the full length of the nozzle.
                                                   //   Set to 0 for manual unloading.
+
+  // The UI asks for the user to change filament
+
   #define FILAMENT_CHANGE_SLOW_LOAD_FEEDRATE   6  // (mm/s) Slow move when starting load.
   #define FILAMENT_CHANGE_SLOW_LOAD_LENGTH     0  // (mm) Slow length, to allow time to insert material.
                                                   // 0 to disable start loading and skip to fast load only
-  #define FILAMENT_CHANGE_FAST_LOAD_FEEDRATE   6  // (mm/s) Load filament feedrate. This can be pretty fast.
+  #define FILAMENT_CHANGE_FAST_LOAD_FEEDRATE  40  // (mm/s) Load filament feedrate. This can be pretty fast.
   #define FILAMENT_CHANGE_FAST_LOAD_ACCEL     25  // (mm/s^2) Lower acceleration may allow a faster feedrate.
-  #define FILAMENT_CHANGE_FAST_LOAD_LENGTH     0  // (mm) Load length of filament, from extruder gear to nozzle.
+  #define FILAMENT_CHANGE_FAST_LOAD_LENGTH   100  // (mm) Load length of filament, from extruder gear to nozzle.
                                                   //   For Bowden, the full length of the tube and nozzle.
                                                   //   For direct drive, the full length of the nozzle.
+
+  // purge before resume printing
+
   //#define ADVANCED_PAUSE_CONTINUOUS_PURGE       // Purge continuously up to the purge length until interrupted.
   #define ADVANCED_PAUSE_PURGE_FEEDRATE        3  // (mm/s) Extrude feedrate (after loading). Should be slower than load feedrate.
   #define ADVANCED_PAUSE_PURGE_LENGTH         50  // (mm) Length to extrude after loading.
@@ -2116,19 +2129,21 @@
   //#define ADVANCED_PAUSE_FANS_PAUSE             // Turn off print-cooling fans while the machine is paused.
 
                                                   // Filament Unload does a Retract, Delay, and Purge first:
-  #define FILAMENT_UNLOAD_PURGE_RETRACT       13  // (mm) Unload initial retract length.
+  #define FILAMENT_UNLOAD_PURGE_RETRACT       20  // (mm) Unload initial retract length.
   #define FILAMENT_UNLOAD_PURGE_DELAY       5000  // (ms) Delay for the filament to cool after retract.
   #define FILAMENT_UNLOAD_PURGE_LENGTH         8  // (mm) An unretract is done, then this length is purged.
+                                                  // ram purge: extrude an amount of filament at high feedrate that it doesn't
+                                                  // have time to melt, to clear out heat chamfer and do a very quick retract
   #define FILAMENT_UNLOAD_PURGE_FEEDRATE      25  // (mm/s) feedrate to purge before unload
 
   #define PAUSE_PARK_NOZZLE_TIMEOUT           45  // (seconds) Time limit before the nozzle is turned off for safety.
   #define FILAMENT_CHANGE_ALERT_BEEPS         10  // Number of alert beeps to play when a response is needed.
   #define PAUSE_PARK_NO_STEPPER_TIMEOUT           // Enable for XYZ steppers to stay powered on during filament change.
 
-  //#define PARK_HEAD_ON_PAUSE                    // Park the nozzle during pause and filament change.
+  #define PARK_HEAD_ON_PAUSE                    // Park the nozzle during pause and filament change.
   //#define HOME_BEFORE_FILAMENT_CHANGE           // If needed, home before parking for filament change
 
-  //#define FILAMENT_LOAD_UNLOAD_GCODES           // Add M701/M702 Load/Unload G-codes, plus Load/Unload in the LCD Prepare menu.
+  #define FILAMENT_LOAD_UNLOAD_GCODES           // Add M701/M702 Load/Unload G-codes, plus Load/Unload in the LCD Prepare menu.
   //#define FILAMENT_UNLOAD_ALL_EXTRUDERS         // Allow M702 to unload all extruders above a minimum target temp (as set by M302)
 #endif
 
@@ -3224,27 +3239,19 @@
 /**
  * User-defined menu items that execute custom GCode
  */
-//#define CUSTOM_USER_MENUS
+#define CUSTOM_USER_MENUS
 #if ENABLED(CUSTOM_USER_MENUS)
   //#define CUSTOM_USER_MENU_TITLE "Custom Commands"
   #define USER_SCRIPT_DONE "M117 User Script Done"
   #define USER_SCRIPT_AUDIBLE_FEEDBACK
-  //#define USER_SCRIPT_RETURN  // Return to status screen after a script
+  #define USER_SCRIPT_RETURN  // Return to status screen after a script
 
-  #define USER_DESC_1 "Home & UBL Info"
-  #define USER_GCODE_1 "G28\nG29 W"
+  #define USER_DESC_1 "Load Filament"
+  #define USER_GCODE_1 "M106 S" STRINGIFY(PREHEAT_1_FAN_SPEED) "\nM109 S" STRINGIFY(PREHEAT_1_TEMP_HOTEND) "\nM701"
 
-  #define USER_DESC_2 "Preheat for " PREHEAT_1_LABEL
-  #define USER_GCODE_2 "M140 S" STRINGIFY(PREHEAT_1_TEMP_BED) "\nM104 S" STRINGIFY(PREHEAT_1_TEMP_HOTEND)
+  #define USER_DESC_2 "Unload Filament"
+  #define USER_GCODE_2 "M106 S" STRINGIFY(PREHEAT_1_FAN_SPEED) "\nM109 S" STRINGIFY(PREHEAT_1_TEMP_HOTEND) "\nM702"
 
-  #define USER_DESC_3 "Preheat for " PREHEAT_2_LABEL
-  #define USER_GCODE_3 "M140 S" STRINGIFY(PREHEAT_2_TEMP_BED) "\nM104 S" STRINGIFY(PREHEAT_2_TEMP_HOTEND)
-
-  #define USER_DESC_4 "Heat Bed/Home/Level"
-  #define USER_GCODE_4 "M140 S" STRINGIFY(PREHEAT_2_TEMP_BED) "\nG28\nG29"
-
-  #define USER_DESC_5 "Home & Info"
-  #define USER_GCODE_5 "G28\nM503"
 #endif
 
 /**
